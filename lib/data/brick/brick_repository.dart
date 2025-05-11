@@ -5,16 +5,17 @@ import 'package:brick_sqlite/memory_cache_provider.dart';
 // This hide is for Brick's @Supabase annotation; in most cases,
 // supabase_flutter **will not** be imported in application code.
 import 'package:brick_supabase/brick_supabase.dart' hide Supabase;
-import 'package:offline_first_todo/brick/db/schema.g.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:offline_first_todo/data/brick/db/schema.g.dart';
 import 'package:sqflite_common/sqlite_api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'brick.g.dart';
 
-class Repository extends OfflineFirstWithSupabaseRepository {
-  static late Repository? _instance;
+class BrickRepository extends OfflineFirstWithSupabaseRepository {
+  static late BrickRepository? _instance;
 
-  Repository._({
+  BrickRepository._({
     required super.supabaseProvider,
     required super.sqliteProvider,
     required super.migrations,
@@ -22,22 +23,16 @@ class Repository extends OfflineFirstWithSupabaseRepository {
     super.memoryCacheProvider,
   });
 
-  factory Repository() => _instance!;
+  factory BrickRepository() => _instance!;
 
   static Future<void> configure(DatabaseFactory databaseFactory) async {
     final (client, queue) = OfflineFirstWithSupabaseRepository.clientQueue(
       databaseFactory: databaseFactory,
     );
-
-    // await Supabase.initialize(
-    //   url: 'https://hjpwmksozffbxglfbfmm.supabase.co',
-    //   anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqcHdta3NvemZmYnhnbGZiZm1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4MTE5MzgsImV4cCI6MjA2MjM4NzkzOH0.b0FHDleMV_4ARAf-rmFDIBgW06mee7OYGCq-c1FP4Zo',
-    //   httpClient: client,
-    // );
-
+    
     await Supabase.initialize(
-      url: 'https://hjpwmksozffbxglfbfmm.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhqcHdta3NvemZmYnhnbGZiZm1tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY4MTE5MzgsImV4cCI6MjA2MjM4NzkzOH0.b0FHDleMV_4ARAf-rmFDIBgW06mee7OYGCq-c1FP4Zo',
+      url: dotenv.env['SUPABASE_URL'] ?? '',
+      anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
       httpClient: client,
     );
 
@@ -46,7 +41,7 @@ class Repository extends OfflineFirstWithSupabaseRepository {
       modelDictionary: supabaseModelDictionary,
     );
 
-    _instance = Repository._(
+    _instance = BrickRepository._(
       supabaseProvider: provider,
       sqliteProvider: SqliteProvider(
         'my_repository.sqlite',

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:offline_first_todo/models/task.model.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import './brick/repository.dart';
+import '../data/brick/brick_repository.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -11,7 +11,9 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Stream<List<Task>> taskStream = Repository().subscribe<Task>();
+  Stream<List<Task>> taskStream = BrickRepository().subscribe<Task>();
+
+  bool isLoading = false;
 
   // final Stream<List<Task>> taskStream = Supabase.instance.client
   //     .from('task')
@@ -24,13 +26,13 @@ class _MyAppState extends State<MyApp> {
 
   void _refresh() async {
     try {
+
+      setState(() {
+        isLoading = true;
+      });
+
       // Fetch the latest data from the server
-      final response =
-          await Supabase.instance.client
-              .from(
-                'task',
-              ) // Ensure the table name matches your Supabase table
-              .select();
+      final response = await Supabase.instance.client.from('task').select();
 
       if (response != null && response is List) {
         final serverTasks =
@@ -45,31 +47,33 @@ class _MyAppState extends State<MyApp> {
                 .toList();
 
         // Get all tasks currently in the local database
-        final localTasks = await Repository().get<Task>();
+        final localTasks = await BrickRepository().get<Task>();
 
         // Update or insert tasks from the server into the local database
         for (var task in serverTasks) {
-          await Repository().upsert<Task>(task);
+          await BrickRepository().upsert<Task>(task);
         }
 
         // Optionally, remove tasks from the local database that are no longer on the server
         final serverTaskIds = serverTasks.map((task) => task.id).toSet();
         for (var localTask in localTasks) {
           if (!serverTaskIds.contains(localTask.id)) {
-            await Repository().delete<Task>(localTask);
+            await BrickRepository().delete<Task>(localTask);
           }
         }
       } else {
         print('Error fetching tasks: Response is null or invalid');
       }
+      
     } catch (e) {
       print('Exception during refresh: $e');
     }
-
-    // Refresh the task stream
-    setState(() {
-      taskStream = Repository().subscribe<Task>();
-    });
+    finally {
+      setState(() {
+        taskStream = BrickRepository().subscribe<Task>();
+        isLoading = false;
+      });
+    }
   }
 
   @override
@@ -87,7 +91,7 @@ class _MyAppState extends State<MyApp> {
       title: 'Offline First Todo',
       home: Scaffold(
         body: Center(
-          child: RefreshIndicator(
+          child: isLoading ? CircularProgressIndicator() : RefreshIndicator(
             onRefresh: () async {
               _refresh();
             },
@@ -104,7 +108,7 @@ class _MyAppState extends State<MyApp> {
                         leading: Checkbox(
                           value: todos[index].isComplete,
                           onChanged: (value) {
-                            Repository().upsert<Task>(
+                            BrickRepository().upsert<Task>(
                               todos[index].copyWith(isComplete: value),
                             );
                           },
@@ -113,7 +117,7 @@ class _MyAppState extends State<MyApp> {
                           icon: const Icon(Icons.delete),
                           onPressed: () {
                             // Handle delete action
-                            Repository().delete<Task>(todos[index]);
+                            BrickRepository().delete<Task>(todos[index]);
                           },
                         ),
                       );
@@ -131,7 +135,7 @@ class _MyAppState extends State<MyApp> {
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
             // Handle adding a new todo
-            Repository().upsert<Task>(
+            BrickRepository().upsert<Task>(
               Task(name: 'New Task', isComplete: false),
             );
 
